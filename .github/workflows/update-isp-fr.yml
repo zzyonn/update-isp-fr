@@ -1,0 +1,41 @@
+name: Mise a jour update-isp-fr
+
+on:
+  schedule:
+    - cron: '17 3 * * *'   # tous les jours a 03:17 UTC
+  workflow_dispatch:        # bouton de lancement manuel
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-isp-fr
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Identite git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fusion et publication de la liste
+        shell: pwsh
+        run: ./Update-IspFr.ps1 -RepoPath $env:GITHUB_WORKSPACE -Verbose
+
+      # Un commit par mois pour que GitHub ne desactive pas le workflow planifie
+      # faute d'activite sur le depot.
+      - name: Controle mensuel
+        if: github.event_name == 'schedule'
+        shell: pwsh
+        run: |
+          if ((Get-Date).Day -ne 1) { return }
+          Get-Date -Format 'yyyy-MM-dd' | Set-Content last-check.txt
+          git add last-check.txt
+          git commit --quiet -m "Controle mensuel"
+          git push --quiet
