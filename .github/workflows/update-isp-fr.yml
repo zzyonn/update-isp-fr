@@ -1,0 +1,31 @@
+# Emplacement dans le depot : .github/workflows/update-isp-fr.yml
+# Le script Update-IspFr.ps1 doit etre a la racine du depot.
+name: Mise a jour isp-fr
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'   # tous les lundis a 03:17 UTC
+  workflow_dispatch:        # bouton de lancement manuel
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-isp-fr
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Identite git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fusion et publication de la liste
+        shell: pwsh
+        run: ./Update-IspFr.ps1 -RepoPath $env:GITHUB_WORKSPACE -Verbose

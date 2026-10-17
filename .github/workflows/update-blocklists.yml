@@ -1,0 +1,53 @@
+# Emplacement dans le depot : .github/workflows/update-blocklists.yml
+# Le script update_blocklists.py doit etre a la racine du depot.
+# Les listes blocklist-in.txt et blocklist-out.txt sont publiees a la racine de main.
+name: Mise a jour blocklists
+
+on:
+  schedule:
+    - cron: '23 */12 * * *'   # 00:23 et 12:23 UTC
+  workflow_dispatch:           # bouton de lancement manuel
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-blocklists
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # Si une source est en panne, le fichier concerne n'est pas reecrit :
+      # la version deja presente dans le depot reste en place.
+      - name: Fusion des listes
+        id: merge
+        run: |
+          set +e
+          python3 update_blocklists.py
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publication sur main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add blocklist-in.txt blocklist-out.txt 2>/dev/null || true
+          if git diff --cached --quiet; then echo "Aucun changement"; exit 0; fi
+          git commit --quiet -m "Blocklists du $(date -u +'%Y-%m-%d %H:%M') UTC"
+          # Plusieurs essais au cas ou un autre workflow pousse au meme moment
+          for i in 1 2 3; do
+            git pull --quiet --rebase && git push --quiet && exit 0
+            sleep 10
+          done
+          echo "Push impossible apres 3 essais"; exit 1
+
+      # Fait echouer le job (et declenche le mail de GitHub) si une liste n'a pas pu etre mise a jour
+      - name: Statut
+        if: steps.merge.outputs.rc != '0'
+        run: |
+          echo "Au moins une liste n'a pas ete mise a jour, voir l'etape Fusion des listes"
+          exit 1
