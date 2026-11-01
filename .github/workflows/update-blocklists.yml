@@ -1,5 +1,6 @@
 # Emplacement dans le depot : .github/workflows/update-blocklists.yml
-# Le script update_blocklists.py doit etre a la racine du depot.
+# Les scripts update_blocklists.py et filter_allowlist.py doivent etre a la racine du depot,
+# ainsi que allowlist.txt (plages a ne jamais bloquer).
 # Les listes blocklist-in.txt et blocklist-out.txt sont publiees a la racine de main.
 name: Mise a jour blocklists
 
@@ -7,6 +8,9 @@ on:
   schedule:
     - cron: '23 */12 * * *'   # 00:23 et 12:23 UTC
   workflow_dispatch:           # bouton de lancement manuel
+  push:                        # relance quand on modifie l'allowlist
+    branches: [main]
+    paths: [allowlist.txt, filter_allowlist.py]
 
 permissions:
   contents: write
@@ -30,6 +34,10 @@ jobs:
           set +e
           python3 update_blocklists.py
           echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      # Retire les plages de allowlist.txt (Roblox...) avant publication
+      - name: Exclusions (allowlist)
+        run: python3 filter_allowlist.py
 
       - name: Publication sur main
         run: |
