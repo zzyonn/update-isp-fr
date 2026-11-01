@@ -1,0 +1,3 @@
+# Plages a ne jamais bloquer, retirees de blocklist-in.txt et blocklist-out.txt
+# Une IP ou un CIDR par ligne, commentaires apres #
+128.116.0.0/17   # Roblox (AS22697) - serveurs de jeu
